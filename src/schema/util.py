@@ -1,4 +1,4 @@
-from typing import Any, get_args, get_origin, Union
+from typing import Any, get_args, get_origin, Union, Sequence
 from pydantic import BaseModel
 
 import polars as pl
@@ -50,7 +50,7 @@ def pl_schema_from_pydantic(model_cls: type[BaseModel]) -> dict[str, pl.DataType
     }
 
 def pl_df_from_pydantic_list(
-    data: list[BaseModel],
+    data: Sequence[BaseModel],
 ) -> pl.DataFrame:
     model_cls = type(data[0])
     schema = pl_schema_from_pydantic(model_cls)

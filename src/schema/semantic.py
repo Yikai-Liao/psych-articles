@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Union
+from semanticscholar.Paper import Paper as S2Paper
 
 class ExternalIds(BaseModel):
     """
@@ -20,8 +21,8 @@ class OpenAccessPdf(BaseModel):
     """
     PDF link and status information
     """
-    url: str
-    status: str
+    url: Optional[str] = None
+    status: Optional[str] = None
     license: Optional[str] = None
     disclaimer: Optional[str] = None
 
@@ -54,8 +55,66 @@ class SemanticPaper(BaseModel):
     authors: List[Author] = Field(default_factory=list)
     abstract: Optional[str] = None  # 注意：你的数据中 Paper [5] 的 abstract 是 None
 
-    @property
-    def query_fields(self):
+    @classmethod
+    def from_s2paper(cls, s2paper: S2Paper) -> "SemanticPaper":
+        """
+        Create SemanticPaper from semanticscholar.Paper instance
+        """
+        if s2paper is None:
+            raise ValueError("s2paper cannot be None")
+
+        external_ids = getattr(s2paper, "externalIds", None) or {}
+        open_access_pdf_data = getattr(s2paper, "openAccessPdf", None)
+        open_access_pdf = (
+            OpenAccessPdf(**open_access_pdf_data) if open_access_pdf_data else None
+        )
+
+        s2_fields = []
+        for item in getattr(s2paper, "s2FieldsOfStudy", None) or []:
+            if isinstance(item, S2FieldOfStudy):
+                s2_fields.append(item)
+            elif isinstance(item, dict):
+                s2_fields.append(S2FieldOfStudy(**item))
+            else:
+                category = getattr(item, "category", None)
+                source = getattr(item, "source", None)
+                if category is not None and source is not None:
+                    s2_fields.append(S2FieldOfStudy(category=category, source=source))
+
+        authors = []
+        for item in getattr(s2paper, "authors", None) or []:
+            if isinstance(item, Author):
+                authors.append(item)
+            else:
+                author_id = getattr(item, "authorId", None)
+                name = getattr(item, "name", "")
+                authors.append(Author(authorId=str(author_id) if author_id is not None else "", name=name))
+
+        publication_date = getattr(s2paper, "publicationDate", None)
+        if publication_date is not None and hasattr(publication_date, "strftime"):
+            publication_date = publication_date.strftime("%Y-%m-%d")
+
+        return cls(
+            paperId=getattr(s2paper, "paperId", None),
+            externalIds=ExternalIds(**external_ids) if isinstance(external_ids, dict) else ExternalIds(),
+            url=getattr(s2paper, "url", None),
+            title=getattr(s2paper, "title", None),
+            venue=getattr(s2paper, "venue", None),
+            year=getattr(s2paper, "year", None),
+            citationCount=getattr(s2paper, "citationCount", 0) or 0,
+            influentialCitationCount=getattr(s2paper, "influentialCitationCount", 0) or 0,
+            isOpenAccess=bool(getattr(s2paper, "isOpenAccess", False)),
+            openAccessPdf=open_access_pdf,
+            fieldsOfStudy=getattr(s2paper, "fieldsOfStudy", None),
+            s2FieldsOfStudy=s2_fields,
+            publicationTypes=getattr(s2paper, "publicationTypes", None),
+            publicationDate=publication_date,
+            authors=authors,
+            abstract=getattr(s2paper, "abstract", None),
+        )
+
+    @staticmethod
+    def query_fields():
         """
         The fields to request when querying Semantic Scholar API
         """
