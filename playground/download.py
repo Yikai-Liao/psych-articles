@@ -25,13 +25,12 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-PLAYWRIGHT_HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "1") != "0"
-PLAYWRIGHT_WAIT_SECONDS = int(os.getenv("PLAYWRIGHT_WAIT_SECONDS", "60"))
-REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "120"))
+REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "60"))
 
 STRATEGY = DirectOrCloudflareStrategy(
     headers=HEADERS,
     timeout=REQUEST_TIMEOUT_SECONDS,
+    api_max_timeout=REQUEST_TIMEOUT_SECONDS * 1000,
 )
 
 
@@ -87,7 +86,7 @@ def sample_and_test_download(file_path: str, samples_per_domain: int = 3) -> Non
     #     samples = []
     
     samples = defaultdict(list)
-    for row in pdf_df.limit(3).iter_rows(named=True):
+    for row in pdf_df.iter_rows(named=True):
         domain = row["domain"]
         paper_id = row["paperId"]
         pdf_url = row["pdf_url"]
